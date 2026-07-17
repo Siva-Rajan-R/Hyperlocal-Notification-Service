@@ -1,0 +1,11 @@
+fastapi
+pydantic
+pydantic-settings
+python-dotenv
+uvicorn
+motor
+pymongo
+orjson
+aio-pika
+uvicorn[standard]
+icecream
