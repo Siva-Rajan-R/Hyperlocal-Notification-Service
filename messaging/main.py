@@ -3,6 +3,7 @@ from aio_pika.abc import AbstractIncomingMessage
 import orjson,asyncio
 from typing import Optional
 from icecream import ic
+from core.configs.settings_config import SETTINGS
 
 class RabbitMQMessagingConfig:
     def __init__(self,rabbitMQ_connection:Optional[RobustConnection]=None):
@@ -12,10 +13,10 @@ class RabbitMQMessagingConfig:
     @staticmethod
     async def get_rabbitmq_connection()->RobustConnection:
         connection=await connect_robust(
-            host='localhost',
-            port=5672,
-            login="guest",
-            password="guest"
+            host=SETTINGS.RABBITMQ_HOST,
+            port=SETTINGS.RABBITMQ_PORT,
+            login=SETTINGS.RABBITMQ_LOGIN,
+            password=SETTINGS.RABBITMQ_PASSWORD
         )
         return connection
     
