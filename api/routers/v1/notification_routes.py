@@ -6,7 +6,7 @@ from bson import ObjectId
 from schemas.v1.notification_schemas import NotificationCreateSchema
 from infras.db.mongo import get_collection
 
-router = APIRouter(prefix="/api/v1/notifications", tags=["Notifications"])
+router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 # Connection Manager for WebSockets
 class ConnectionManager:
