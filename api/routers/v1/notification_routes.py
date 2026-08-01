@@ -47,8 +47,10 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 @router.websocket("/ws/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: str):
-    await manager.connect(user_id, websocket)
+@router.websocket("/ws/{target_type}/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str, target_type: Optional[str] = None):
+    conn_key = f"{target_type}:{user_id}" if target_type else user_id
+    await manager.connect(conn_key, websocket)
     
     # Upon connection, fetch stored offline notifications for this user
     try:
@@ -74,9 +76,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             data = await websocket.receive_text()
             # We can handle heartbeat/ping-pong if needed
     except WebSocketDisconnect:
-        manager.disconnect(user_id)
+        manager.disconnect(conn_key)
     except Exception:
-        manager.disconnect(user_id)
+        manager.disconnect(conn_key)
 
 # Push Notification API (Triggered by Retailer / Services)
 @router.post("/send")

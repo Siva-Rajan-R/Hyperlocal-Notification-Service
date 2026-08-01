@@ -9,3 +9,5 @@ orjson
 aio-pika
 uvicorn[standard]
 icecream
+
+websockets
