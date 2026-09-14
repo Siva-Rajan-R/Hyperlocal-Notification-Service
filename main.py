@@ -14,9 +14,12 @@ async def lifespan(app: FastAPI):
     # Startup: Connect to MongoDB
     await MongoDBManager.connect()
     # Start RabbitMQ worker
-    asyncio.create_task(worker())
+    app.state.worker_task = asyncio.create_task(worker())
     yield
-    # Shutdown: Close connections
+    # Shutdown: Close connections & stop worker
+    if hasattr(app.state, "worker_task") and app.state.worker_task:
+        app.state.worker_task.cancel()
+        await asyncio.gather(app.state.worker_task, return_exceptions=True)
     await MongoDBManager.disconnect()
 
 app = FastAPI(

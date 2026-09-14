@@ -26,5 +26,11 @@ async def worker():
         await rabbitmq_msg_obj.consume_event(queue_name=queue_name, handler=notification_message_controller)
         ic("Notification Service RabbitMQ Worker is now listening for events 👂")
         
+        await asyncio.Event().wait()
+    except asyncio.CancelledError:
+        pass
     except Exception as e:
         ic("Failed to start Notification Service RabbitMQ Worker:", e)
+    finally:
+        if 'rabbitmq_conn' in locals() and rabbitmq_conn and not rabbitmq_conn.is_closed:
+            await rabbitmq_conn.close()
