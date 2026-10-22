@@ -9,6 +9,44 @@ from icecream import ic
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
+def is_digital_store_notification(data_dict: dict) -> bool:
+    """Helper to detect if a notification is related to Digital Store / Online Orders."""
+    meta = data_dict.get("additional_metadata") or {}
+    category = str(meta.get("category", "")).lower()
+    origin = str(meta.get("origin") or meta.get("order_origin") or "").upper()
+    channel = str(meta.get("channel", "")).lower()
+    source = str(meta.get("source", "")).lower()
+    module_name = str(meta.get("module") or meta.get("service") or "").lower()
+
+    if category in ("digital_store", "digitalstore", "online_orders", "online_order", "online"):
+        return True
+    if origin in ("ONLINE", "DIGITAL_STORE", "DIGITALSTORE"):
+        return True
+    if meta.get("is_online") is True or meta.get("digital_store") is True:
+        return True
+    if channel in ("online", "digital_store", "web"):
+        return True
+    if source in ("digital_store", "digitalstore", "online_store"):
+        return True
+    if module_name in ("digital_store", "digitalstore", "online_orders"):
+        return True
+
+    ntype = str(data_dict.get("type", "")).lower()
+    if any(k in ntype for k in ("digital_store", "digitalstore", "online_order")):
+        return True
+
+    title = str(data_dict.get("title", "")).lower()
+    message = str(data_dict.get("message", "")).lower()
+    text = f"{title} {message}"
+    digital_keywords = (
+        "digital store", "digitalstore", "online order", "online store",
+        "web store", "storefront", "store profile", "store domain",
+        "store setting", "store visibility", "store hours", "store vacation",
+        "store announcement", "customer review", "store review"
+    )
+    return any(k in text for k in digital_keywords)
+
+
 def sanitize_for_json(obj):
     if isinstance(obj, ObjectId):
         return str(obj)
@@ -160,6 +198,12 @@ async def send_notification(data: NotificationCreateSchema):
         "additional_metadata": data.additional_metadata or {}
     }
 
+    from core.configs.settings_config import SETTINGS
+    if SETTINGS.ENVIRONMENT and SETTINGS.ENVIRONMENT.lower() in ("production", "prod"):
+        if not is_digital_store_notification(base_notif_data):
+            ic("[PROD FILTER] Suppressed non-digital-store notification in production:", data.title)
+            return {"status": "suppressed_in_production", "title": data.title}
+
     # Case A: Broadcast to ALL connected users
     if data.target_type == "all":
         # Always store the broadcast notification in MongoDB
@@ -247,7 +291,8 @@ async def get_notifications(
     user_id: str = Query(..., description="User ID to fetch notifications for"),
     shop_id: Optional[str] = Query(None, description="Shop ID"),
     unread_only: bool = Query(False, description="Filter only unread notifications"),
-    limit: int = Query(100, description="Max notifications to fetch")
+    limit: int = Query(100, description="Max notifications to fetch"),
+    environment: Optional[str] = Query(None, description="Current environment (production vs development)")
 ):
     collection = get_collection()
     or_conditions = [
@@ -281,6 +326,16 @@ async def get_notifications(
         if "is_read" not in notif:
             notif["is_read"] = False
         result.append(notif)
+        
+    from core.configs.settings_config import SETTINGS
+    is_prod = False
+    if environment and environment.lower() in ("production", "prod"):
+        is_prod = True
+    elif SETTINGS.ENVIRONMENT and SETTINGS.ENVIRONMENT.lower() in ("production", "prod"):
+        is_prod = True
+        
+    if is_prod:
+        result = [n for n in result if is_digital_store_notification(n)]
         
     return result
 
